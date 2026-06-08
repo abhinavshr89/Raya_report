@@ -1,0 +1,49 @@
+%% R.A.Y.A v2.4 — Entity Relationship Diagram (actual data model)
+%% NOTE: the project has NO relational/SQLite database. Persistence is a
+%% JSON memory file + a JSON config file; tasks and plans live in memory.
+%% This ER models those real structures, not the prose's SQLite tables.
+erDiagram
+    MEMORY_FILE  ||--o{ CATEGORY    : contains
+    CATEGORY     ||--o{ ENTRY       : holds
+    TASK_QUEUE   ||--o{ TASK        : queues
+    TASK         ||--o{ PLAN_STEP   : "plan has"
+    PLAN_STEP    ||--o| STEP_RESULT : produces
+
+    MEMORY_FILE {
+        string path "memory/long_term.json"
+        int    max_chars "2200 cap, oldest trimmed"
+    }
+    CATEGORY {
+        string name "identity | preferences | projects | relationships | wishes | notes"
+    }
+    ENTRY {
+        string key "snake_case"
+        string value "<=380 chars"
+        string updated "YYYY-MM-DD"
+    }
+    CONFIG {
+        string gemini_api_key
+    }
+    TASK_QUEUE {
+        int max_concurrent "1"
+    }
+    TASK {
+        string task_id PK
+        int    priority "1 high .. 3 low"
+        string goal
+        string status "pending|running|completed|failed|cancelled"
+        float  created_at
+        string result
+        string error
+    }
+    PLAN_STEP {
+        int    step
+        string tool
+        string description
+        json   parameters
+        bool   critical
+    }
+    STEP_RESULT {
+        int    step_num FK
+        string output
+    }

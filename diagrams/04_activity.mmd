@@ -1,0 +1,42 @@
+%% R.A.Y.A v2.4 — Activity Diagram
+%% Full task lifecycle from user request to result, including the single-tool
+%% path and the agent_task path with its three bounded loops
+%% (retry <=3, replan <=2, step loop).
+flowchart TD
+    A([Start]) --> B[/User enters request: voice or text/]
+    B --> C[Input processing & prompt construction]
+    C --> D[Gemini Live interprets request]
+    D --> E{Tool call needed?}
+
+    E -->|No| F[Speak conversational reply]
+    F --> Z([End])
+
+    E -->|Single tool| G[Dispatch to action module]
+    G --> H[Return result and speak]
+    H --> Z
+
+    E -->|agent_task| I[Submit goal to Task Queue]
+    I --> J[Worker thread pulls task]
+    J --> K[Planner generates JSON plan]
+    K --> L{Plan has valid steps?}
+    L -->|No| M[Use fallback plan]
+    M --> N[Take next step]
+    L -->|Yes| N
+
+    N --> O[Inject prior results + translate]
+    O --> P[Call step tool]
+    P --> Q{Step succeeded?}
+
+    Q -->|Yes| R[Store step result]
+    R --> S{More steps?}
+    S -->|Yes| N
+    S -->|No| T[Summarize and speak]
+    T --> Z
+
+    Q -->|No| U[Error handler analyzes failure]
+    U --> V{Recovery decision}
+    V -->|retry &le;3| P
+    V -->|skip| R
+    V -->|replan &le;2| K
+    V -->|abort| W[Inform user: task aborted]
+    W --> Z

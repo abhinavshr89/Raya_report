@@ -1,0 +1,55 @@
+%% R.A.Y.A v2.4 — Level 1 Data Flow Diagram
+%% Decomposes the single Level-0 process into its major sub-processes,
+%% data stores, and the flows between them. Mirrors actual code paths.
+flowchart TD
+    User([User]):::ent
+    LLM([Gemini Cloud]):::ent
+    OS([OS · Internet · Hardware]):::ent
+
+    P1(["1.0 Input Processing<br/>capture audio/text · build prompt"]):::proc
+    P2(["2.0 Tool Dispatch<br/>RayaLive._execute_tool"]):::proc
+    P3(["3.0 Plan Generation<br/>planner.create_plan"]):::proc
+    P4(["4.0 Task Execution<br/>executor + actions/*"]):::proc
+    P5(["5.0 Error Handling & Replan<br/>error_handler"]):::proc
+    P6(["6.0 Memory Management<br/>memory_manager"]):::proc
+    P7(["7.0 Result Reporting<br/>UI activity · speech"]):::proc
+
+    D1[("D1 Long-term Memory<br/>long_term.json")]:::store
+    D2[("D2 Config<br/>api_keys.json")]:::store
+    D3[("D3 Task Queue<br/>in-memory priority queue")]:::store
+    D4[("D4 Step Results<br/>in-memory dict")]:::store
+
+    User -->|voice / text| P1
+    D2 -->|API key at boot| P1
+    P1 -->|PCM stream + tool decls| LLM
+    LLM -->|tool_call| P2
+
+    P2 -->|single-tool args| P4
+    P2 -->|agent_task goal| D3
+    D3 -->|next task| P4
+
+    P4 -->|goal / replan request| P3
+    P3 -->|JSON plan| P4
+    P3 -. reads .-> D2
+
+    P4 -->|step + params| OS
+    OS -->|step output| P4
+    P4 -->|store output| D4
+    D4 -->|prior outputs injected| P4
+
+    P4 -->|failed step + error| P5
+    P5 -->|retry / skip / abort| P4
+    P5 -->|revised plan| P3
+
+    P2 -->|save_memory fact| P6
+    P6 -->|read at boot · write| D1
+
+    P4 -->|final summary| P7
+    P2 -->|tool result| P7
+    P7 -->|tool_response| LLM
+    LLM -->|synthesized audio| P7
+    P7 -->|spoken reply + UI| User
+
+    classDef ent fill:#1f2937,stroke:#60a5fa,color:#fff;
+    classDef proc fill:#0b3d2e,stroke:#34d399,color:#fff;
+    classDef store fill:#3b2f0b,stroke:#fbbf24,color:#fff;
